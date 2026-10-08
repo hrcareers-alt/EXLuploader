@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import gspread
@@ -8,12 +9,31 @@ from playwright.sync_api import sync_playwright
 load_dotenv()
 
 # --- CONFIGURATION ---
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "service_account.json")
 EXL_LINK = "https://exlphilippines.talkpush.com/careers/4-customer-service/apply?source=Edward+Mapa+Belacse+%28Olympuz%29&redirect_url=https%3A%2F%2Ftalkpu.sh%2Ft%2F5HDwH000n&refresh_rate=1"
+SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+def _service_account_info():
+    """The secret may be a JSON document or the usual path to a key file."""
+    inline = (os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON") or "").strip()
+    configured = (os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or "").strip()
+    payload = inline or (configured if configured.startswith("{") else "")
+    if not payload:
+        return None
+    info = json.loads(payload)
+    if isinstance(info, str):
+        info = json.loads(info)
+    private_key = info.get("private_key") or ""
+    if "\\n" in private_key:
+        info["private_key"] = private_key.replace("\\n", "\n")
+    return info
 
 def setup_gspread():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+    info = _service_account_info()
+    if info is not None:
+        creds = Credentials.from_service_account_info(info, scopes=SHEETS_SCOPES)
+    else:
+        key_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "service_account.json")
+        creds = Credentials.from_service_account_file(key_file, scopes=SHEETS_SCOPES)
     return gspread.authorize(creds)
 
 def format_exl_phone(phone_str):

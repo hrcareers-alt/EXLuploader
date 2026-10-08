@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import gspread
@@ -13,7 +14,13 @@ EXL_LINK = "https://exlphilippines.talkpush.com/careers/4-customer-service/apply
 
 def setup_gspread():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+    # Cursor secrets inject JSON into GOOGLE_APPLICATION_CREDENTIALS;
+    # local runs may still use a path to a service-account file.
+    if SERVICE_ACCOUNT_FILE.strip().startswith("{"):
+        info = json.loads(SERVICE_ACCOUNT_FILE)
+        creds = Credentials.from_service_account_info(info, scopes=scopes)
+    else:
+        creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
     return gspread.authorize(creds)
 
 def format_exl_phone(phone_str):
